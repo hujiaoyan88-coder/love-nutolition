@@ -76,4 +76,188 @@
         </div>
         <!-- 夕 -->
         <div class="border-2 border-emerald-100 rounded-3xl p-6">
-          <div class
+          <div class="flex items-center gap-3 mb-4"><span class="text-3xl">🌙</span><span class="font-bold text-xl">夕食</span></div>
+          <div id="slot-evening" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 冷蔵庫・冷凍庫 -->
+  <div class="max-w-7xl mx-auto p-4 mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="storage-box rounded-3xl p-5" id="shared-fridge">
+      <div class="font-bold text-sky-600 mb-3"><i class="fa-solid fa-box"></i> 冷蔵庫</div>
+    </div>
+    <div class="storage-box rounded-3xl p-5" id="shared-freezer">
+      <div class="font-bold text-sky-600 mb-3"><i class="fa-solid fa-snowflake"></i> 冷凍庫</div>
+    </div>
+  </div>
+
+  <script>
+    let foodsDB = [];
+    let currentDayIndex = 0;
+    const days = ['月', '火', '水', '木', '金', '土', '日'];
+
+    // 簡易食品データ（foods.json がなくても動くように）
+    const fallbackFoods = [
+      { "食品番号": "01001", "食　品　名": "ご飯", "エネルギー": "168", "たんぱく質": "2.5", "脂質": "0.3", "炭水化物": "36.8" },
+      { "食品番号": "01002", "食　品　名": "味噌汁", "エネルギー": "45", "たんぱく質": "2.8", "脂質": "1.2", "炭水化物": "6.5" },
+      { "食品番号": "02001", "食　品　名": "卵", "エネルギー": "151", "たんぱく質": "12.3", "脂質": "10.3", "炭水化物": "0.3" },
+      { "食品番号": "03001", "食　品　名": "鶏むね肉", "エネルギー": "108", "たんぱく質": "22.3", "脂質": "1.5", "炭水化物": "0" },
+    ];
+
+    async function loadFoods() {
+      try {
+        const res = await fetch('foods.json');
+        if (res.ok) foodsDB = await res.json();
+        else throw new Error();
+      } catch(e) {
+        foodsDB = fallbackFoods;
+        console.log('foods.jsonが見つからないため、サンプルデータを使用します');
+      }
+    }
+
+    function showSection(section) {
+      document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+      document.getElementById(section + '-section').classList.add('active');
+      if (section === 'menu') initDayTabs();
+    }
+
+    function addIngredientRow() {
+      const list = document.getElementById('ingredients-list');
+      const id = Date.now();
+      const row = document.createElement('div');
+      row.className = "flex gap-3 items-end bg-gray-50 p-4 rounded-2xl";
+      row.innerHTML = `
+        <div class="flex-1 relative">
+          <input type="text" id="name-${id}" placeholder="食品名 または 番号" 
+                 class="w-full border rounded-xl px-4 py-3" oninput="showSuggestions('${id}')">
+          <div id="suggestions-${id}" class="suggestions hidden"></div>
+        </div>
+        <input type="number" id="amount-${id}" value="100" class="w-28 border rounded-xl px-4 py-3 text-center" onchange="calculateNutrition()">
+        <button onclick="this.parentElement.remove();calculateNutrition()" class="text-red-500 px-4 py-3">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      `;
+      list.appendChild(row);
+    }
+
+    function showSuggestions(id) {
+      const input = document.getElementById(`name-${id}`);
+      const query = input.value.trim().toLowerCase();
+      const div = document.getElementById(`suggestions-${id}`);
+      if (query.length < 1) { div.classList.add('hidden'); return; }
+
+      const matches = foodsDB.filter(f => 
+        f["食　品　名"]?.toLowerCase().includes(query) || 
+        f["食品番号"]?.includes(query)
+      ).slice(0, 8);
+
+      div.innerHTML = matches.map(food => `
+        <div onclick="selectFood('${id}', '${food["食　品　名"]}')" 
+             class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-0">
+          ${food["食品番号"]} ${food["食　品　名"]}
+        </div>
+      `).join('') || '<div class="px-4 py-2 text-gray-500">見つかりません</div>';
+
+      div.classList.remove('hidden');
+    }
+
+    function selectFood(id, name) {
+      document.getElementById(`name-${id}`).value = name;
+      document.getElementById(`suggestions-${id}`).classList.add('hidden');
+      calculateNutrition();
+    }
+
+    function calculateNutrition() {
+      let total = {kcal:0, protein:0, fat:0, carb:0};
+      document.querySelectorAll('#ingredients-list > div').forEach(row => {
+        const name = row.querySelector('input[type="text"]').value.trim();
+        const amount = parseFloat(row.querySelector('input[type="number"]').value) || 0;
+        if (!name || amount <= 0) return;
+
+        const food = foodsDB.find(f => f["食　品　名"] === name || f["食品番号"] === name);
+        if (food) {
+          const ratio = amount / 100;
+          total.kcal += parseFloat(food["エネルギー"] || 0) * ratio;
+          total.protein += parseFloat(food["たんぱく質"] || 0) * ratio;
+          total.fat += parseFloat(food["脂質"] || 0) * ratio;
+          total.carb += parseFloat(food["炭水化物"] || 0) * ratio;
+        }
+      });
+
+      const servings = parseInt(document.getElementById('servings').value) || 1;
+      total.kcal = total.kcal / servings;
+      total.protein = total.protein / servings;
+      total.fat = total.fat / servings;
+      total.carb = total.carb / servings;
+
+      document.getElementById('nutrition-result').innerHTML = `
+        <div class="bg-white p-4 rounded-2xl shadow-sm"><span class="text-2xl">🔥</span><br><b>${Math.round(total.kcal)}</b> kcal</div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm"><span class="text-2xl">🥩</span><br><b>${total.protein.toFixed(1)}</b> g</div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm"><span class="text-2xl">🧈</span><br><b>${total.fat.toFixed(1)}</b> g</div>
+        <div class="bg-white p-4 rounded-2xl shadow-sm"><span class="text-2xl">🍚</span><br><b>${total.carb.toFixed(1)}</b> g</div>
+      `;
+    }
+
+    function createRecipeCard(type) {
+      const name = document.getElementById('recipe-name').value.trim() || "無名料理";
+      const container = document.getElementById(type === 'fridge' ? 'shared-fridge' : 'shared-freezer');
+
+      const card = document.createElement('div');
+      card.className = `food-card bg-white border-2 border-sky-400 rounded-2xl p-4 mb-3 shadow cursor-move`;
+      card.draggable = true;
+      card.dataset.storage = type;
+      card.innerHTML = `<div class="font-bold text-lg">${name}</div>`;
+      
+      // ドラッグイベント
+      card.ondragstart = (e) => {
+        e.dataTransfer.setData("text", card.outerHTML);
+        setTimeout(() => card.style.opacity = "0.3", 0);
+      };
+      card.ondragend = () => card.style.opacity = "1";
+
+      container.appendChild(card);
+    }
+
+    // Drag & Drop 機能
+    function allowDrop(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+    function drop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      
+      const data = e.dataTransfer.getData("text");
+      if (data) {
+        const temp = document.createElement('div');
+        temp.innerHTML = data;
+        const card = temp.firstChild;
+        e.currentTarget.appendChild(card);
+      }
+    }
+
+    function initDayTabs() {
+      const container = document.getElementById('day-tabs');
+      container.innerHTML = '';
+      days.forEach((day, i) => {
+        const btn = document.createElement('button');
+        btn.className = `day-tab px-6 py-2 rounded-3xl border whitespace-nowrap transition-all ${i === currentDayIndex ? 'active' : 'bg-white hover:bg-gray-100'}`;
+        btn.textContent = day;
+        btn.onclick = () => {
+          currentDayIndex = i;
+          document.getElementById('current-day-header').textContent = day + "曜日の献立";
+          initDayTabs();
+        };
+        container.appendChild(btn);
+      });
+      document.getElementById('current-day-header').textContent = days[currentDayIndex] + "曜日の献立";
+    }
+
+    window.onload = () => {
+      loadFoods();
+      addIngredientRow();
+      showSection('recipe');
+      initDayTabs();
+    };
+  </script>
+</body>
+</html>
