@@ -78,7 +78,8 @@
             <span class="text-3xl">☀️</span>
             <span class="font-bold text-xl">朝</span>
           </div>
-          <div id="slot-morning" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4 bg-emerald-50"></div>
+          <div id="slot-morning" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4" 
+     ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
           <div class="flex gap-3 mt-4">
             <button onclick="eat('slot-morning')" class="flex-1 py-3 bg-blue-600 text-white rounded-2xl font-bold">食べた</button>
             <button onclick="resetSlot('slot-morning')" class="flex-1 py-3 bg-gray-500 text-white rounded-2xl font-bold">リセット</button>
@@ -90,7 +91,8 @@
             <span class="text-3xl">🍱</span>
             <span class="font-bold text-xl">昼</span>
           </div>
-          <div id="slot-noon" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4 bg-emerald-50"></div>
+          <div id="slot-noon" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4" 
+     ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
           <div class="flex gap-3 mt-4">
             <button onclick="eat('slot-noon')" class="flex-1 py-3 bg-blue-600 text-white rounded-2xl font-bold">食べた</button>
             <button onclick="resetSlot('slot-noon')" class="flex-1 py-3 bg-gray-500 text-white rounded-2xl font-bold">リセット</button>
@@ -102,7 +104,8 @@
             <span class="text-3xl">🌙</span>
             <span class="font-bold text-xl">夕</span>
           </div>
-          <div id="slot-evening" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4 bg-emerald-50"></div>
+          <div id="slot-evening" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4" 
+     ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
           <div class="flex gap-3 mt-4">
             <button onclick="eat('slot-evening')" class="flex-1 py-3 bg-blue-600 text-white rounded-2xl font-bold">食べた</button>
             <button onclick="resetSlot('slot-evening')" class="flex-1 py-3 bg-gray-500 text-white rounded-2xl font-bold">リセット</button>
@@ -221,7 +224,6 @@
       `;
     }
 
-    // カード作成（食数分）
     function createRecipeCard(type) {
       const name = document.getElementById('recipe-name').value.trim() || "無名料理";
       const servings = parseInt(document.getElementById('servings').value) || 1;
@@ -229,7 +231,7 @@
 
       for (let i = 0; i < servings; i++) {
         const card = document.createElement('div');
-        card.id = 'card-' + Date.now() + '-' + i;
+        card.id = 'card-' + Date.now() + Math.random().toString(36).substr(2, 5);
         card.className = `food-card bg-white border-2 border-sky-400 rounded-2xl p-4 mb-3 shadow cursor-move`;
         card.draggable = true;
         card.dataset.storage = type;
@@ -253,7 +255,10 @@
       e.currentTarget.classList.add('drag-over');
     }
 
-    // 最も安定したドロップ処理
+    function dragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
     function drop(e) {
       e.preventDefault();
       e.currentTarget.classList.remove('drag-over');
@@ -291,9 +296,7 @@
     function resetSlot(slotId) {
       const slot = document.getElementById(slotId);
       const fridge = document.getElementById('shared-fridge');
-      slot.querySelectorAll('.food-card').forEach(card => {
-        fridge.appendChild(card);
-      });
+      slot.querySelectorAll('.food-card').forEach(card => fridge.appendChild(card));
     }
 
     window.onload = () => {
