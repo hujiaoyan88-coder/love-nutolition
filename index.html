@@ -224,10 +224,10 @@
         card.innerHTML = `
           <div class="font-bold">${name}</div>
           <div class="text-xs text-sky-500">${servings}食分 (${i+1}/${servings})</div>
-        `;}
+        `;
 
         card.ondragstart = (e) => {
-          e.dataTransfer.setData("text/plain", card.id);
+          e.dataTransfer.setData("text/plain", card.innerHTML);
           setTimeout(() => card.style.opacity = "0.4", 100);
         };
         card.ondragend = () => card.style.opacity = "1";
