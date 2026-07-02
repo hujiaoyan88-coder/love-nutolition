@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -259,7 +258,7 @@
 
       const cardId =e.dataTransfer.getData("text/plain");
       const card = document.getElementById(cardId);
-        if (card) e.currentTarget.appendChild(card);
+        if (card) {e.currentTarget.appendChild(card);}
       }
     }
 
