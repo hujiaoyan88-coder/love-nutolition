@@ -51,7 +51,7 @@
         <button onclick="createRecipeCard('fridge')" class="flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-3xl">❄️ 冷蔵庫に保存</button>
         <button onclick="createRecipeCard('freezer')" class="flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-3xl">🧊 冷凍庫に保存</button>
       </div>
-    </div>
+    
     
   <!-- 冷蔵庫・冷凍庫 -->
   <div class="max-w-7xl mx-auto p-4 mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -62,7 +62,7 @@
       <div class="font-bold text-sky-600 mb-3"><i class="fa-solid fa-snowflake"></i> 冷凍庫</div>
     </div>
   </div>
-
+</div>
    <!-- 献立作成 -->
     <div id="menu-section" class="section bg-white rounded-3xl shadow-xl p-8 border">
       <h2 class="text-2xl font-bold mb-6">📅 献立作成</h2>
@@ -120,7 +120,7 @@
     </div>
   </div>
 
-  <script>
+ <script>
     let foodsDB = [];
     let currentDayIndex = 0;
     const days = ['月', '火', '水', '木', '金', '土', '日'];
@@ -221,6 +221,7 @@
       `;
     }
 
+    // カード作成（食数分）
     function createRecipeCard(type) {
       const name = document.getElementById('recipe-name').value.trim() || "無名料理";
       const servings = parseInt(document.getElementById('servings').value) || 1;
@@ -228,6 +229,7 @@
 
       for (let i = 0; i < servings; i++) {
         const card = document.createElement('div');
+        card.id = 'card-' + Date.now() + '-' + i;
         card.className = `food-card bg-white border-2 border-sky-400 rounded-2xl p-4 mb-3 shadow cursor-move`;
         card.draggable = true;
         card.dataset.storage = type;
@@ -236,14 +238,11 @@
           <div class="text-xs text-sky-500">${servings}食分 (${i+1}/${servings})</div>
         `;
 
-        // 正しいドラッグ開始処理
         card.ondragstart = function(e) {
-          e.dataTransfer.setData("text/html", card.outerHTML);
+          e.dataTransfer.setData("text/plain", card.id);
           setTimeout(() => card.style.opacity = "0.4", 0);
         };
-        card.ondragend = function() {
-          card.style.opacity = "1";
-        };
+        card.ondragend = () => card.style.opacity = "1";
 
         container.appendChild(card);
       }
@@ -254,24 +253,16 @@
       e.currentTarget.classList.add('drag-over');
     }
 
+    // 最も安定したドロップ処理
     function drop(e) {
       e.preventDefault();
       e.currentTarget.classList.remove('drag-over');
 
-      const data = e.dataTransfer.getData("text/html");
-      if (data) {
-        const temp = document.createElement('div');
-        temp.innerHTML = data;
-        const newCard = temp.firstElementChild;
-        if (newCard) {
-          // ドラッグ後のイベントを再設定
-          newCard.ondragstart = function(ev) {
-            ev.dataTransfer.setData("text/html", newCard.outerHTML);
-            setTimeout(() => newCard.style.opacity = "0.4", 0);
-          };
-          newCard.ondragend = function() { newCard.style.opacity = "1"; };
-          e.currentTarget.appendChild(newCard);
-        }
+      const cardId = e.dataTransfer.getData("text/plain");
+      const card = document.getElementById(cardId);
+
+      if (card) {
+        e.currentTarget.appendChild(card);
       }
     }
 
@@ -292,18 +283,15 @@
       document.getElementById('current-day-header').textContent = days[currentDayIndex] + "曜日の献立";
     }
 
-    // 食べたボタン
     function eat(slotId) {
       const slot = document.getElementById(slotId);
       slot.querySelectorAll('.food-card').forEach(card => card.remove());
     }
 
-    // リセットボタン（冷蔵庫に戻す）
     function resetSlot(slotId) {
       const slot = document.getElementById(slotId);
       const fridge = document.getElementById('shared-fridge');
-      const cards = Array.from(slot.querySelectorAll('.food-card'));
-      cards.forEach(card => {
+      slot.querySelectorAll('.food-card').forEach(card => {
         fridge.appendChild(card);
       });
     }
