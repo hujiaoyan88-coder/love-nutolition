@@ -13,6 +13,16 @@
     .meal-slot.drag-over { background-color: #dcfce7 !important; border-color: #22c55e !important; }
     .section { display: none; }
     .section.active { display: block; }
+    .suggestions {
+      max-height: 200px;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      position: absolute;
+      z-index: 10;
+      width: 100%;
+    }
   </style>
 </head>
 <body class="bg-gray-50 p-6">
@@ -41,9 +51,9 @@
       try {
         const res = await fetch('foods.json');
         foodsDB = await res.json();
-        console.log(`✅ ${foodsDB.length}件の食品データを読み込みました`);
-      } catch (e) {
-        console.error('foods.jsonの読み込みに失敗しました');
+        console.log(`✅ ${foodsDB.length}件読み込み完了`);
+      } catch(e) {
+        console.error('foods.json 読み込み失敗');
       }
     }
 
@@ -52,14 +62,58 @@
       const id = Date.now();
 
       const row = document.createElement('div');
-      row.className = "flex gap-3 items-end bg-gray-50 p-4 rounded-2xl";
+      row.className = "flex gap-3 items-end bg-gray-50 p-4 rounded-2xl relative";
       row.innerHTML = `
-        <input type="text" id="name-${id}" placeholder="食品名（例: ご飯、鶏むね肉）" 
-               class="flex-1 border rounded-xl px-4 py-3" oninput="calculateNutrition()">
+        <div class="flex-1">
+          <input type="text" id="name-${id}" placeholder="食品名 または 食品番号" 
+                 class="w-full border rounded-xl px-4 py-3" 
+                 oninput="showSuggestions('${id}')" onblur="hideSuggestions('${id}')">
+          <div id="suggestions-${id}" class="suggestions hidden"></div>
+        </div>
         <input type="number" id="amount-${id}" value="100" class="w-28 border rounded-xl px-4 py-3 text-center" onchange="calculateNutrition()">
-        <button onclick="this.parentElement.remove(); calculateNutrition()" class="text-red-500 px-4">削除</button>
+        <button onclick="this.parentElement.remove();calculateNutrition()" class="text-red-500 px-4">削除</button>
       `;
       list.appendChild(row);
+    }
+
+    function showSuggestions(id) {
+      const input = document.getElementById(`name-${id}`);
+      const query = input.value.trim().toLowerCase();
+      const suggestionsDiv = document.getElementById(`suggestions-${id}`);
+      
+      if (query.length < 1) {
+        suggestionsDiv.classList.add('hidden');
+        return;
+      }
+
+      const matches = foodsDB.filter(f => 
+        (f["食　品　名"] && f["食　品　名"].toLowerCase().includes(query)) ||
+        (f["食品番号"] && f["食品番号"].includes(query))
+      ).slice(0, 8); // 上位8件
+
+      let html = '';
+      matches.forEach(food => {
+        html += `
+          <div onclick="selectFood('${id}', '${food["食　品　名"]}', this)" 
+               class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b">
+            ${food["食品番号"]} ${food["食　品　名"]}
+          </div>`;
+      });
+
+      suggestionsDiv.innerHTML = html || '<div class="px-4 py-2 text-gray-500">見つかりません</div>';
+      suggestionsDiv.classList.remove('hidden');
+    }
+
+    function selectFood(id, foodName, element) {
+      document.getElementById(`name-${id}`).value = foodName;
+      document.getElementById(`suggestions-${id}`).classList.add('hidden');
+      calculateNutrition();
+    }
+
+    function hideSuggestions(id) {
+      setTimeout(() => {
+        document.getElementById(`suggestions-${id}`).classList.add('hidden');
+      }, 200);
     }
 
     function calculateNutrition() {
@@ -68,16 +122,15 @@
       document.querySelectorAll('#ingredients-list > div').forEach(row => {
         const nameInput = row.querySelector('input[type="text"]');
         const amountInput = row.querySelector('input[type="number"]');
-
+        
         const name = nameInput.value.trim();
         const amount = parseFloat(amountInput.value) || 0;
 
         if (name && amount > 0) {
-          // 食品名で検索
           const food = foodsDB.find(f => 
-            f["食　品　名"] && f["食　品　名"].includes(name)
+            (f["食　品　名"] === name) || 
+            (f["食品番号"] === name)
           );
-
           if (food) {
             const ratio = amount / 100;
             total.kcal += parseFloat(food["エネルギー"] || 0) * ratio;
@@ -103,7 +156,7 @@
 
     window.onload = () => {
       loadFoods();
-      addIngredientRow(); // 最初に1行追加
+      addIngredientRow();
     };
   </script>
 </body>
