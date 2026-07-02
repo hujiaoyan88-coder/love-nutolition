@@ -7,24 +7,15 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    .food-card { 
-      transition: all 0.2s ease; 
-      user-select: none; 
-    }
+    .food-card { transition: all 0.2s ease; user-select: none; }
     .food-card:active { transform: scale(0.95); }
-    .meal-slot { 
-      min-height: 180px; 
-      transition: all 0.2s; 
-    }
-    .meal-slot.drag-over { 
-      background-color: #dcfce7 !important; 
-      border-color: #22c55e !important; 
-      scale: 1.02; 
-    }
+    .meal-slot { min-height: 180px; transition: all 0.2s; }
+    .meal-slot.drag-over { background-color: #dcfce7 !important; border-color: #22c55e !important; scale: 1.02; }
     .section { display: none; }
     .section.active { display: block; }
     .day-tab.active { background-color: #166534; color: white; font-weight: 700; }
     .storage-box { border: 3px solid #bae6fd; background: #f0f9ff; }
+    .suggestions { max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 8px; position: absolute; z-index: 50; width: 100%; }
   </style>
 </head>
 <body class="bg-gray-50">
@@ -55,13 +46,10 @@
       <div class="mt-8 flex gap-4 items-end">
         <div>
           <label class="block font-bold mb-2">食数（人数）</label>
-          <input id="servings" type="number" value="2" min="1" 
-                 class="w-28 border-2 border-gray-200 rounded-3xl px-6 py-4 text-2xl text-center">
+          <input id="servings" type="number" value="2" min="1" class="w-28 border-2 border-gray-200 rounded-3xl px-6 py-4 text-2xl text-center">
         </div>
-        <button onclick="createRecipeCard('fridge')" 
-                class="flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-3xl">❄️ 冷蔵庫に保存</button>
-        <button onclick="createRecipeCard('freezer')" 
-                class="flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-3xl">🧊 冷凍庫に保存</button>
+        <button onclick="createRecipeCard('fridge')" class="flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-3xl">❄️ 冷蔵庫に保存</button>
+        <button onclick="createRecipeCard('freezer')" class="flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-3xl">🧊 冷凍庫に保存</button>
       </div>
     </div>
 
@@ -112,6 +100,7 @@
       try {
         const res = await fetch('foods.json');
         if (res.ok) foodsDB = await res.json();
+        else foodsDB = fallbackFoods;
       } catch(e) {
         foodsDB = fallbackFoods;
       }
@@ -123,65 +112,81 @@
       if (section === 'menu') initDayTabs();
     }
 
-    function addIngredientRow() { /* 省略（前回と同じ） */ 
+    function addIngredientRow() {
       const list = document.getElementById('ingredients-list');
       const id = Date.now();
       const row = document.createElement('div');
-      row.className = "flex gap-3 items-end bg-gray-50 p-4 rounded-2xl";
+      row.className = "flex gap-3 items-end bg-gray-50 p-4 rounded-2xl relative";
       row.innerHTML = `
-        <div class="flex-1 relative">
-          <input type="text" id="name-${id}" placeholder="食品名 または 番号" class="w-full border rounded-xl px-4 py-3" oninput="showSuggestions('${id}')">
-          <div id="suggestions-${id}" class="suggestions hidden absolute w-full bg-white shadow-lg rounded-xl mt-1"></div>
+        <div class="flex-1">
+          <input type="text" id="name-${id}" placeholder="食品名 または 番号" 
+                 class="w-full border rounded-xl px-4 py-3" oninput="showSuggestions('${id}')">
+          <div id="suggestions-${id}" class="suggestions hidden"></div>
         </div>
         <input type="number" id="amount-${id}" value="100" class="w-28 border rounded-xl px-4 py-3 text-center" onchange="calculateNutrition()">
-        <button onclick="this.parentElement.remove();calculateNutrition()" class="text-red-500 px-4 py-3"><i class="fa-solid fa-trash"></i></button>
+        <button onclick="this.parentElement.remove();calculateNutrition()" class="text-red-500 px-4">削除</button>
       `;
       list.appendChild(row);
     }
 
-    function showSuggestions(id) { /* 前回と同じ */ 
-     const input = document.getElementById(`name-${id}`);
+    function showSuggestions(id) {
+      const input = document.getElementById(`name-${id}`);
       const query = input.value.trim().toLowerCase();
       const div = document.getElementById(`suggestions-${id}`);
       if (query.length < 1) { div.classList.add('hidden'); return; }
 
       const matches = foodsDB.filter(f => 
-        f["食　品　名"]?.toLowerCase().includes(query) || 
-        f["食品番号"]?.includes(query)
+        (f["食　品　名"] && f["食　品　名"].toLowerCase().includes(query)) ||
+        (f["食品番号"] && f["食品番号"].includes(query))
       ).slice(0, 8);
 
-      div.innerHTML = matches.map(food => `
-        <div onclick="selectFood('${id}', '${food["食　品　名"]}')" 
-             class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-0">
-          ${food["食品番号"]} ${food["食　品　名"]}
-        </div>
-      `).join('') || '<div class="px-4 py-2 text-gray-500">見つかりません</div>';
-
+      let html = '';
+      matches.forEach(food => {
+        html += `<div onclick="selectFood('${id}', '${food["食　品　名"]}')" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">${food["食品番号"]} ${food["食　品　名"]}</div>`;
+      });
+      div.innerHTML = html || '<div class="px-4 py-2 text-gray-500">見つかりません</div>';
       div.classList.remove('hidden');
     }
 
-    function selectFood(id, name) { document.getElementById(`name-${id}`).value = name;
+    function selectFood(id, name) {
+      document.getElementById(`name-${id}`).value = name;
       document.getElementById(`suggestions-${id}`).classList.add('hidden');
-      calculateNutrition(); }
+      calculateNutrition();
+    }
 
- function calculateNutrition() {
+    function calculateNutrition() {
       let total = {kcal:0, protein:0, fat:0, carb:0};
       document.querySelectorAll('#ingredients-list > div').forEach(row => {
-        const name = row.querySelector('input[type="text"]').value.trim();
-        const amount = parseFloat(row.querySelector('input[type="number"]').value) || 0;
-        if (!name || amount <= 0) return;
-
-        const food = foodsDB.find(f => f["食　品　名"] === name || f["食品番号"] === name);
-        if (food) {
-          const ratio = amount / 100;
-          total.kcal += parseFloat(food["エネルギー"] || 0) * ratio;
-          total.protein += parseFloat(food["たんぱく質"] || 0) * ratio;
-          total.fat += parseFloat(food["脂質"] || 0) * ratio;
-          total.carb += parseFloat(food["炭水化物"] || 0) * ratio;
+        const nameInput = row.querySelector('input[type="text"]');
+        const amountInput = row.querySelector('input[type="number"]');
+        const name = nameInput.value.trim();
+        const amount = parseFloat(amountInput.value) || 0;
+        if (name && amount > 0) {
+          const food = foodsDB.find(f => f["食　品　名"] === name || f["食品番号"] === name);
+          if (food) {
+            const r = amount / 100;
+            total.kcal += parseFloat(food["エネルギー"] || 0) * r;
+            total.protein += parseFloat(food["たんぱく質"] || 0) * r;
+            total.fat += parseFloat(food["脂質"] || 0) * r;
+            total.carb += parseFloat(food["炭水化物"] || 0) * r;
+          }
         }
       });
 
-    // 食数分カード作成
+      const servings = parseInt(document.getElementById('servings').value) || 1;
+      total.kcal = total.kcal / servings;
+      total.protein = total.protein / servings;
+      total.fat = total.fat / servings;
+      total.carb = total.carb / servings;
+
+      document.getElementById('nutrition-result').innerHTML = `
+        <div>🔥 <b>${Math.round(total.kcal)}</b> kcal</div>
+        <div>🥩 <b>${total.protein.toFixed(1)}</b> g</div>
+        <div>🧈 <b>${total.fat.toFixed(1)}</b> g</div>
+        <div>🍚 <b>${total.carb.toFixed(1)}</b> g</div>
+      `;
+    }
+
     function createRecipeCard(type) {
       const name = document.getElementById('recipe-name').value.trim() || "無名料理";
       const servings = parseInt(document.getElementById('servings').value) || 1;
@@ -189,19 +194,17 @@
 
       for (let i = 0; i < servings; i++) {
         const card = document.createElement('div');
-        card.className = `food-card bg-white border-2 border-sky-400 rounded-2xl p-4 mb-3 shadow cursor-move flex justify-between items-center`;
+        card.className = `food-card bg-white border-2 border-sky-400 rounded-2xl p-4 mb-3 shadow cursor-move`;
         card.draggable = true;
         card.dataset.storage = type;
         card.innerHTML = `
-          <div>
-            <div class="font-bold">${name}</div>
-            <div class="text-xs text-sky-500">${servings}食分 ${i+1}/${servings}</div>
-          </div>
+          <div class="font-bold">${name}</div>
+          <div class="text-xs text-sky-500">${servings}食分 (${i+1}/${servings})</div>
         `;
 
         card.ondragstart = (e) => {
           e.dataTransfer.setData("text/html", card.outerHTML);
-          setTimeout(() => card.style.opacity = "0.4", 10);
+          setTimeout(() => card.style.opacity = "0.4", 0);
         };
         card.ondragend = () => card.style.opacity = "1";
 
@@ -209,7 +212,6 @@
       }
     }
 
-    // Drag & Drop
     function allowDrop(e) {
       e.preventDefault();
       e.currentTarget.classList.add('drag-over');
@@ -218,12 +220,11 @@
     function drop(e) {
       e.preventDefault();
       e.currentTarget.classList.remove('drag-over');
-
       const data = e.dataTransfer.getData("text/html");
       if (data) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = data;
-        const card = tempDiv.firstElementChild;
+        const temp = document.createElement('div');
+        temp.innerHTML = data;
+        const card = temp.firstElementChild;
         if (card) e.currentTarget.appendChild(card);
       }
     }
@@ -233,12 +234,12 @@
       container.innerHTML = '';
       days.forEach((day, i) => {
         const btn = document.createElement('button');
-        btn.className = `day-tab px-6 py-2 rounded-3xl border whitespace-nowrap transition-all ${i === currentDayIndex ? 'active' : 'bg-white hover:bg-gray-100'}`;
+        btn.className = `day-tab px-6 py-2 rounded-3xl border whitespace-nowrap ${i === currentDayIndex ? 'active' : 'bg-white'}`;
         btn.textContent = day;
-        btn.onclick = () => {
-          currentDayIndex = i;
-          document.getElementById('current-day-header').textContent = day + "曜日の献立";
-          initDayTabs();
+        btn.onclick = () => { 
+          currentDayIndex = i; 
+          document.getElementById('current-day-header').textContent = day + "曜日の献立"; 
+          initDayTabs(); 
         };
         container.appendChild(btn);
       });
