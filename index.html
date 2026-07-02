@@ -41,6 +41,10 @@
       </div>
 
       <div class="mt-8 flex gap-4">
+<div>
+          <label class="block font-bold mb-2">食数</label>
+          <input id="servings" type="number" value="1" min="1" class="w-28 border-2 border-gray-200 rounded-3xl px-6 py-4 text-2xl text-center">
+        </div>
         <button onclick="createRecipeCard('fridge')" class="flex-1 py-4 bg-sky-500 text-white font-bold rounded-3xl">❄️ 冷蔵庫</button>
         <button onclick="createRecipeCard('freezer')" class="flex-1 py-4 bg-sky-500 text-white font-bold rounded-3xl">🧊 冷凍庫</button>
       </div>
@@ -169,13 +173,21 @@
           }
         }
       });
-      document.getElementById('nutrition-result').innerHTML = `
-        <div>🔥 <b>${Math.round(total.kcal)}</b> kcal</div>
-        <div>🥩 <b>${total.protein.toFixed(1)}</b> g</div>
-        <div>🧈 <b>${total.fat.toFixed(1)}</b> g</div>
-        <div>🍚 <b>${total.carb.toFixed(1)}</b> g</div>
-      `;
-    }
+        const servings = parseInt(document.getElementById('servings').value) || 1;
+  
+  // 食数で割る（1食分にする）
+  total.kcal = total.kcal / servings;
+  total.protein = total.protein / servings;
+  total.fat = total.fat / servings;
+  total.carb = total.carb / servings;
+
+  document.getElementById('nutrition-result').innerHTML = `
+    <div>🔥 <b>${Math.round(total.kcal)}</b> kcal</div>
+    <div>🥩 <b>${total.protein.toFixed(1)}</b> g</div>
+    <div>🧈 <b>${total.fat.toFixed(1)}</b> g</div>
+    <div>🍚 <b>${total.carb.toFixed(1)}</b> g</div>
+  `;
+}
 
     function createRecipeCard(type) {
       const name = document.getElementById('recipe-name').value.trim() || "無名料理";
