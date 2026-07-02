@@ -63,14 +63,27 @@
         <div class="border-2 border-emerald-100 rounded-3xl p-6">
           <div class="flex items-center gap-3 mb-4"><span class="text-3xl">☀️</span><span class="font-bold text-xl">朝食</span></div>
           <div id="slot-morning" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="flex gap-2 mt-2">
+            <button onclick="eat('slot-morning')" class="flex-1 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">食べた</button>
+            <button onclick="resetSlot('slot-morning')" class="flex-1 py-1.5 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold">リセット</button>
+          </div>
+        </div>
         </div>
         <div class="border-2 border-emerald-100 rounded-3xl p-6">
           <div class="flex items-center gap-3 mb-4"><span class="text-3xl">🍱</span><span class="font-bold text-xl">昼食</span></div>
           <div id="slot-noon" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+       　　<div class="flex gap-2 mt-2">
+            <button onclick="eat('slot-noon')" class="flex-1 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">食べた</button>
+            <button onclick="resetSlot('slot-noon')" class="flex-1 py-1.5 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold">リセット</button>
+          </div>
         </div>
         <div class="border-2 border-emerald-100 rounded-3xl p-6">
           <div class="flex items-center gap-3 mb-4"><span class="text-3xl">🌙</span><span class="font-bold text-xl">夕食</span></div>
           <div id="slot-evening" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="flex gap-2 mt-2">
+            <button onclick="eat('slot-evening')" class="flex-1 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">食べた</button>
+            <button onclick="resetSlot('slot-evening')" class="flex-1 py-1.5 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold">リセット</button>
+          </div>
         </div>
       </div>
     </div>
@@ -203,7 +216,7 @@
         `;
 
         card.ondragstart = (e) => {
-          e.dataTransfer.setData("text/html", card.outerHTML);
+          e.dataTransfer.setData("text/plain", card.outerHTML);
           setTimeout(() => card.style.opacity = "0.4", 0);
         };
         card.ondragend = () => card.style.opacity = "1";
@@ -244,6 +257,24 @@
         container.appendChild(btn);
       });
       document.getElementById('current-day-header').textContent = days[currentDayIndex] + "曜日の献立";
+    }
+
+    // 食べたボタン
+    function eat(slotId) {
+      const slot = document.getElementById(slotId);
+      const cards = slot.querySelectorAll('.food-card');
+      cards.forEach(card => card.remove());
+    }
+
+    // リセットボタン（冷蔵庫に戻す）
+    function resetSlot(slotId) {
+      const slot = document.getElementById(slotId);
+      const fridge = document.getElementById('fridge');
+      const cards = Array.from(slot.querySelectorAll('.food-card'));
+      
+      cards.forEach(card => {
+        fridge.appendChild(card);
+      });
     }
 
     window.onload = () => {
