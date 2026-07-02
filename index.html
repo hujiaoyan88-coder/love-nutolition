@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>栄養価計算 献立表</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .food-card {
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .food-card:active { transform: scale(0.95); }
+    .meal-slot {
+      min-height: 130px;
+      transition: background-color 0.2s;
+    }
+    .meal-slot.drag-over {
+      background-color: #dcfce7 !important;
+      border-color: #22c55e !important;
+    }
+    .section { display: none; }
+    .section.active { display: block; }
+    .day-tab.active { background-color: #166534; color: white; font-weight: 700; }
+    .storage-box {
+      border: 3px solid #bae6fd;
+      background: #f0f9ff;
+      max-height: 320px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="max-w-7xl mx-auto p-4">
+    <!-- ヘッダー -->
+    <div class="flex justify-between items-center mb-6">
+      <div class="flex items-center gap-3">
+        <div class="text-4xl">🍽️</div>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800">栄養価計算 献立表</h1>
+          <p class="text-sm text-gray-500">ver.0.8 - 栄養計算対応</p>
+        </div>
+      </div>
+      <div class="flex gap-2 bg-white p-2 rounded-3xl shadow">
+        <button onclick="showSection('howto')" class="px-6 py-3 rounded-2xl font-bold bg-orange-500 text-white">📖 使い方</button>
+        <button onclick="showSection('recipe')" class="px-6 py-3 rounded-2xl font-bold bg-orange-500 text-white">🍳 料理作成</button>
+        <button onclick="showSection('menu')" class="px-6 py-3 rounded-2xl font-bold bg-emerald-600 text-white">📅 献立作成</button>
+      </div>
+    </div>
+
+    <!-- 料理作成画面 -->
+    <div id="recipe-section" class="section active bg-white rounded-3xl shadow p-8">
+      <h2 class="text-2xl font-bold mb-6">🍳 料理作成</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- 左側：入力 -->
+        <div>
+          <input id="recipe-name" type="text" placeholder="料理名（例: 鶏むね肉の炒め物）" 
+                 class="w-full border-2 rounded-3xl px-6 py-4 text-xl mb-6">
+
+          <div id="ingredients-list" class="space-y-4"></div>
+
+          <button onclick="addIngredientRow()" 
+                  class="mt-4 px-6 py-3 bg-emerald-500 text-white rounded-2xl font-bold flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> 材料を追加
+          </button>
+        </div>
+
+        <!-- 右側：合計栄養価 -->
+        <div class="bg-emerald-50 rounded-3xl p-6">
+          <h3 class="font-bold text-lg mb-4">📊 栄養価（1食分）</h3>
+          <div id="nutrition-result" class="space-y-3 text-lg"></div>
+          
+          <div class="mt-8 flex gap-3">
+            <button onclick="createRecipeCard('fridge')" class="flex-1 py-4 bg-sky-500 text-white font-bold rounded-3xl">❄️ 冷蔵庫に保存</button>
+            <button onclick="createRecipeCard('freezer')" class="flex-1 py-4 bg-sky-500 text-white font-bold rounded-3xl">🧊 冷凍庫に保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="menu-section" class="section bg-white rounded-3xl shadow p-8">
+      <h2 class="text-2xl font-bold mb-6">📅 献立作成</h2>
+      <div class="flex gap-2 mb-6 overflow-x-auto" id="day-tabs"></div>
+      <div id="current-day-header" class="text-3xl font-bold text-emerald-700 mb-6">月</div>
+      
+      <div class="grid grid-cols-3 gap-6">
+        <div class="border-2 border-emerald-100 rounded-3xl p-6">
+          <div class="flex items-center gap-3 mb-4"><span class="text-3xl">☀️</span><span class="font-bold text-xl">朝</span></div>
+          <div id="slot-morning" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4"></div>
+          <div class="mt-4 flex gap-3">
+            <button onclick="eat('slot-morning')" class="flex-1 py-3 bg-blue-600 text-white rounded-2xl font-bold">食べた</button>
+            <button onclick="resetSlot('slot-morning')" class="flex-1 py-3 bg-gray-500 text-white rounded-2xl font-bold">リセット</button>
+          </div>
+        </div>
+        <div class="border-2 border-emerald-100 rounded-3xl p-6">
+          <div class="flex items-center gap-3 mb-4"><span class="text-3xl">🍱</span><span class="font-bold text-xl">昼</span></div>
+          <div id="slot-noon" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4"></div>
+          <div class="mt-4 flex gap-3">
+            <button onclick="eat('slot-noon')" class="flex-1 py-3 bg-blue-600 text-white rounded-2xl font-bold">食べた</button>
+            <button onclick="resetSlot('slot-noon')" class="flex-1 py-3 bg-gray-500 text-white rounded-2xl font-bold">リセット</button>
+          </div>
+        </div>
+        <div class="border-2 border-emerald-100 rounded-3xl p-6">
+          <div class="flex items-center gap-3 mb-4"><span class="text-3xl">🌙</span><span class="font-bold text-xl">夕</span></div>
+          <div id="slot-evening" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4"></div>
+          <div class="mt-4 flex gap-3">
+            <button onclick="eat('slot-evening')" class="flex-1 py-3 bg-blue-600 text-white rounded-2xl font-bold">食べた</button>
+            <button onclick="resetSlot('slot-evening')" class="flex-1 py-3 bg-gray-500 text-white rounded-2xl font-bold">リセット</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 冷蔵庫・冷凍庫 -->
+  <div class="max-w-7xl mx-auto p-4 mt-8 grid grid-cols-2 gap-6">
+    <div class="storage-box rounded-3xl p-5" id="shared-fridge">
+      <div class="font-bold text-sky-600 mb-3 flex items-center gap-2 sticky top-0 bg-white/90 py-1"><i class="fa-solid fa-box"></i> 冷蔵庫</div>
+    </div>
+    <div class="storage-box rounded-3xl p-5" id="shared-freezer">
+      <div class="font-bold text-sky-600 mb-3 flex items-center gap-2 sticky top-0 bg-white/90 py-1"><i class="fa-solid fa-snowflake"></i> 冷凍庫</div>
+    </div>
+  </div>
+
+  <script>
+    // foods.json を読み込む（同じフォルダに置いてね）
+    let foodsDB = [];
+    fetch('foods.json')
+      .then(r => r.json())
+      .then(data => {
+        foodsDB = data;
+        console.log('食品データ読み込み完了', foodsDB.length, '件');
+      })
+      .catch(() => console.error('foods.jsonが見つかりません'));
+
+    let ingredients = []; // 現在の材料リスト
+
+    function addIngredientRow() {
+      const list = document.getElementById('ingredients-list');
+      const id = 'ing-' + Date.now();
+      
+      const row = document.createElement('div');
+      row.className = 'flex gap-3 items-center bg-gray-50 p-4 rounded-2xl';
+      row.innerHTML = `
+        <input type="text" id="${id}-name" placeholder="食品名" 
+               class="flex-1 border rounded-xl px-4 py-3" oninput="searchFood('${id}')">
+        <input type="number" id="${id}-amount" placeholder="g" value="100" 
+               class="w-24 border rounded-xl px-4 py-3 text-center" onchange="calculateNutrition()">
+        <button onclick="this.parentElement.remove(); calculateNutrition()" 
+                class="text-red-500">削除</button>
+      `;
+      list.appendChild(row);
+    }
+
+    function searchFood(rowId) {
+      // 簡易サジェスト（実際はdatalist推奨）
+      console.log('検索中...', document.getElementById(rowId + '-name').value);
+    }
+
+    function calculateNutrition() {
+      let total = { kcal: 0, protein: 0, fat: 0, carb: 0 };
+      
+      document.querySelectorAll('#ingredients-list > div').forEach(row => {
+        const nameInput = row.querySelector('input[type="text"]');
+        const amount = parseFloat(row.querySelector('input[type="number"]').value) || 0;
+        
+        if (nameInput && amount > 0) {
+          const food = foodsDB.find(f => 
+            f.name && nameInput.value && f.name.includes(nameInput.value)
+          );
+          if (food) {
+            const ratio = amount / 100;
+            total.kcal += (food.kcal || food.energy || 0) * ratio;
+            total.protein += (food.protein || 0) * ratio;
+            total.fat += (food.fat || 0) * ratio;
+            total.carb += (food.carb || food.carbohydrate || 0) * ratio;
+          }
+        }
+      });
+
+      // 表示更新
+      document.getElementById('nutrition-result').innerHTML = `
+        <div>🔥 エネルギー: <b>${total.kcal.toFixed(0)} kcal</b></div>
+        <div>🥩 たんぱく質: <b>${total.protein.toFixed(1)} g</b></div>
+        <div>🧈 脂質: <b>${total.fat.toFixed(1)} g</b></div>
+        <div>🍚 炭水化物: <b>${total.carb.toFixed(1)} g</b></div>
+      `;
+    }
+
+     let currentDayIndex = 0;
+    const days = ['月', '火', '水', '木', '金', '土', '日'];
+
+    function showSection(section) {
+      document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+      document.getElementById(section + '-section').classList.add('active');
+      if (section === 'menu') initDayTabs();
+    }
+
+    function createRecipeCard(type) {
+      const name = document.getElementById('recipe-name').value.trim() || "手作り料理";
+      const servings = parseInt(document.getElementById('servings').value) || 1;
+      const container = document.getElementById(type === 'fridge' ? 'shared-fridge' : 'shared-freezer');
+
+      for (let i = 0; i < servings; i++) {
+        const card = document.createElement('div');
+        card.className = `food-card bg-white border border-sky-400 rounded-2xl p-4 mb-3 shadow cursor-move`;
+        card.draggable = true;
+        card.id = 'card-' + Date.now() + i;
+        card.dataset.storage = type;   // ← ここが大事！
+        card.innerHTML = `<div class="font-bold">${name}</div><div class="text-xs text-gray-500">${servings}食分</div>`;
+        setupDragEvents(card);
+        container.appendChild(card);
+      }
+    }
+
+    function setupDragEvents(card) {
+      card.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', card.id);
+        card.style.opacity = '0.5';
+      });
+      card.addEventListener('dragend', () => card.style.opacity = '1');
+    }
+
+    function setupDropZones() {
+      ['slot-morning', 'slot-noon', 'slot-evening'].forEach(id => {
+        const slot = document.getElementById(id);
+        slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+        slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+        slot.addEventListener('drop', e => {
+          e.preventDefault();
+          slot.classList.remove('drag-over');
+          const card = document.getElementById(e.dataTransfer.getData('text/plain'));
+          if (card) slot.appendChild(card);
+        });
+      });
+    }
+
+    function eat(slotId) {
+      document.getElementById(slotId).querySelectorAll('.food-card').forEach(c => c.remove());
+    }
+
+    function resetSlot(slotId) {
+      const slot = document.getElementById(slotId);
+      slot.querySelectorAll('.food-card').forEach(card => {
+        const target = card.dataset.storage === 'freezer' 
+          ? document.getElementById('shared-freezer') 
+          : document.getElementById('shared-fridge');
+        target.appendChild(card);
+      });
+    }
+
+    function initDayTabs() {
+      const container = document.getElementById('day-tabs');
+      container.innerHTML = '';
+      days.forEach((day, i) => {
+        const btn = document.createElement('button');
+        btn.className = `day-tab px-6 py-2 rounded-3xl border whitespace-nowrap ${i === currentDayIndex ? 'active' : 'bg-white'}`;
+        btn.textContent = day;
+        btn.onclick = () => {
+          currentDayIndex = i;
+          document.getElementById('current-day-header').textContent = day;
+          initDayTabs();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function init() {
+      showSection('recipe');
+      addIngredientRow(); // 最初に1行追加
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
