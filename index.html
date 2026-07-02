@@ -51,8 +51,8 @@
       <h2 class="text-2xl font-bold mb-6">📅 献立作成</h2>
       <div class="flex gap-2 mb-6 overflow-x-auto" id="day-tabs"></div>
       <div id="current-day-header" class="text-3xl font-bold text-emerald-700 mb-6">月</div>
+      
       <div class="grid grid-cols-3 gap-6">
-        <!-- 朝昼夕スロット（簡略） -->
         <div class="border-2 border-emerald-100 rounded-3xl p-6">
           <div class="flex items-center gap-3 mb-4"><span class="text-3xl">☀️</span><span class="font-bold text-xl">朝</span></div>
           <div id="slot-morning" class="meal-slot border-2 border-dashed border-emerald-200 rounded-3xl p-4"></div>
@@ -93,6 +93,8 @@
 
   <script>
     let foodsDB = [];
+    let currentDayIndex = 0;
+    const days = ['月', '火', '水', '木', '金', '土', '日'];
 
     async function loadFoods() {
       try {
@@ -100,21 +102,25 @@
         foodsDB = await res.json();
         console.log(`✅ ${foodsDB.length}件読み込み完了`);
       } catch(e) {
-        console.error('foods.json 読み込み失敗');
+        console.error('foods.jsonが見つかりません');
       }
+    }
+
+    function showSection(section) {
+      document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+      document.getElementById(section + '-section').classList.add('active');
+      if (section === 'menu') initDayTabs();
     }
 
     function addIngredientRow() {
       const list = document.getElementById('ingredients-list');
       const id = Date.now();
-
       const row = document.createElement('div');
       row.className = "flex gap-3 items-end bg-gray-50 p-4 rounded-2xl relative";
       row.innerHTML = `
         <div class="flex-1">
-          <input type="text" id="name-${id}" placeholder="食品名 または 食品番号" 
-                 class="w-full border rounded-xl px-4 py-3" 
-                 oninput="showSuggestions('${id}')" onblur="hideSuggestions('${id}')">
+          <input type="text" id="name-${id}" placeholder="食品名 または 番号" 
+                 class="w-full border rounded-xl px-4 py-3" oninput="showSuggestions('${id}')">
           <div id="suggestions-${id}" class="suggestions hidden"></div>
         </div>
         <input type="number" id="amount-${id}" value="100" class="w-28 border rounded-xl px-4 py-3 text-center" onchange="calculateNutrition()">
@@ -126,68 +132,46 @@
     function showSuggestions(id) {
       const input = document.getElementById(`name-${id}`);
       const query = input.value.trim().toLowerCase();
-      const suggestionsDiv = document.getElementById(`suggestions-${id}`);
-      
-      if (query.length < 1) {
-        suggestionsDiv.classList.add('hidden');
-        return;
-      }
+      const div = document.getElementById(`suggestions-${id}`);
+      if (query.length < 1) { div.classList.add('hidden'); return; }
 
       const matches = foodsDB.filter(f => 
         (f["食　品　名"] && f["食　品　名"].toLowerCase().includes(query)) ||
         (f["食品番号"] && f["食品番号"].includes(query))
-      ).slice(0, 8); // 上位8件
+      ).slice(0, 8);
 
       let html = '';
       matches.forEach(food => {
-        html += `
-          <div onclick="selectFood('${id}', '${food["食　品　名"]}', this)" 
-               class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b">
-            ${food["食品番号"]} ${food["食　品　名"]}
-          </div>`;
+        html += `<div onclick="selectFood('${id}', '${food["食　品　名"]}')" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">${food["食品番号"]} ${food["食　品　名"]}</div>`;
       });
-
-      suggestionsDiv.innerHTML = html || '<div class="px-4 py-2 text-gray-500">見つかりません</div>';
-      suggestionsDiv.classList.remove('hidden');
+      div.innerHTML = html;
+      div.classList.remove('hidden');
     }
 
-    function selectFood(id, foodName, element) {
-      document.getElementById(`name-${id}`).value = foodName;
+    function selectFood(id, name) {
+      document.getElementById(`name-${id}`).value = name;
       document.getElementById(`suggestions-${id}`).classList.add('hidden');
       calculateNutrition();
     }
 
-    function hideSuggestions(id) {
-      setTimeout(() => {
-        document.getElementById(`suggestions-${id}`).classList.add('hidden');
-      }, 200);
-    }
-
     function calculateNutrition() {
-      let total = {kcal: 0, protein: 0, fat: 0, carb: 0};
-
+      let total = {kcal:0, protein:0, fat:0, carb:0};
       document.querySelectorAll('#ingredients-list > div').forEach(row => {
         const nameInput = row.querySelector('input[type="text"]');
         const amountInput = row.querySelector('input[type="number"]');
-        
         const name = nameInput.value.trim();
         const amount = parseFloat(amountInput.value) || 0;
-
         if (name && amount > 0) {
-          const food = foodsDB.find(f => 
-            (f["食　品　名"] === name) || 
-            (f["食品番号"] === name)
-          );
+          const food = foodsDB.find(f => f["食　品　名"] === name || f["食品番号"] === name);
           if (food) {
-            const ratio = amount / 100;
-            total.kcal += parseFloat(food["エネルギー"] || 0) * ratio;
-            total.protein += parseFloat(food["たんぱく質"] || 0) * ratio;
-            total.fat += parseFloat(food["脂質"] || 0) * ratio;
-            total.carb += parseFloat(food["炭水化物"] || 0) * ratio;
+            const r = amount / 100;
+            total.kcal += parseFloat(food["エネルギー"] || 0) * r;
+            total.protein += parseFloat(food["たんぱく質"] || 0) * r;
+            total.fat += parseFloat(food["脂質"] || 0) * r;
+            total.carb += parseFloat(food["炭水化物"] || 0) * r;
           }
         }
       });
-
       document.getElementById('nutrition-result').innerHTML = `
         <div>🔥 <b>${Math.round(total.kcal)}</b> kcal</div>
         <div>🥩 <b>${total.protein.toFixed(1)}</b> g</div>
@@ -198,12 +182,62 @@
 
     function createRecipeCard(type) {
       const name = document.getElementById('recipe-name').value.trim() || "無名料理";
-      alert(`${name} を${type === 'fridge' ? '冷蔵庫' : '冷凍庫'}に保存しました！`);
+      const container = document.getElementById(type === 'fridge' ? 'shared-fridge' : 'shared-freezer');
+      const card = document.createElement('div');
+      card.className = `food-card bg-white border border-sky-400 rounded-2xl p-4 mb-3 shadow cursor-move`;
+      card.draggable = true;
+      card.dataset.storage = type;
+      card.innerHTML = `<div class="font-bold">${name}</div>`;
+      container.appendChild(card);
+    }
+
+    function initDayTabs() {
+      const container = document.getElementById('day-tabs');
+      container.innerHTML = '';
+      days.forEach((day, i) => {
+        const btn = document.createElement('button');
+        btn.className = `day-tab px-6 py-2 rounded-3xl border whitespace-nowrap ${i === currentDayIndex ? 'active' : 'bg-white'}`;
+        btn.textContent = day;
+        btn.onclick = () => { currentDayIndex = i; document.getElementById('current-day-header').textContent = day; initDayTabs(); };
+        container.appendChild(btn);
+      });
+    }
+
+    function eat(slotId) {
+      document.getElementById(slotId).querySelectorAll('.food-card').forEach(c => c.remove());
+    }
+
+    function resetSlot(slotId) {
+      const slot = document.getElementById(slotId);
+      const fridge = document.getElementById('shared-fridge');
+      const freezer = document.getElementById('shared-freezer');
+      slot.querySelectorAll('.food-card').forEach(card => {
+        const target = card.dataset.storage === 'freezer' ? freezer : fridge;
+        target.appendChild(card);
+      });
+    }
+
+    function setupDragDrop() {
+      const slots = ['slot-morning', 'slot-noon', 'slot-evening'];
+      slots.forEach(id => {
+        const slot = document.getElementById(id);
+        slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+        slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+        slot.addEventListener('drop', e => {
+          e.preventDefault();
+          slot.classList.remove('drag-over');
+          const cardId = e.dataTransfer.getData('text/plain');
+          const card = document.getElementById(cardId);
+          if (card) slot.appendChild(card);
+        });
+      });
     }
 
     window.onload = () => {
       loadFoods();
       addIngredientRow();
+      showSection('recipe');
+      setupDragDrop();
     };
   </script>
 </body>
